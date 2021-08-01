@@ -30,9 +30,9 @@ type Map<T> = HashMap<Symbol, T>;
 
 type FnArgs = dyn Iterator<Item = Expr>;
 
-trait FnClone: DynClone + for<'a> Fn(&'a mut FnArgs) -> Result<Expr> {}
+trait FnClone: DynClone + Fn(Vec<Expr>) -> Result<Expr> {}
 
-impl<T> FnClone for T where T: DynClone + for<'a> Fn(&'a mut FnArgs) -> Result<Expr> {}
+impl<T> FnClone for T where T: DynClone + Fn(Vec<Expr>) -> Result<Expr> {}
 
 dyn_clone::clone_trait_object!(FnClone);
 
@@ -50,20 +50,20 @@ enum Expr {
 }
 
 #[fehler::throws]
-fn apply(env: &mut Env, f: Expr, args: Vec<Expr>) -> Expr {
+fn apply<'a>(env: &Env, f: Expr, args: Vec<Expr>) -> Expr {
     if let PrimOp(op) = eval(env, f)? {
         let args = args.into_iter().map(|x| eval(env, x));
 
-        let a = args.map(|x| x.unwrap());
+        let a: Vec<Expr> = args.map(|x| x.unwrap()).collect();
 
-        op(&mut a)?
+        op(a)?
     } else {
         bail!("not a primop");
     }
 }
 
 #[fehler::throws]
-fn eval(env: &mut Env, expr: Expr) -> Expr {
+fn eval(env: &Env, expr: Expr) -> Expr {
     match expr {
         Var(x) => env.vars.get(&x).map(|x| (*x).clone()).unwrap_or(Var(x)),
         App(f, args) => apply(env, *f, args)?,
@@ -72,7 +72,7 @@ fn eval(env: &mut Env, expr: Expr) -> Expr {
 }
 
 #[fehler::throws]
-fn bin_op(f: impl Fn(f64, f64) -> f64, init: f64, args: &mut FnArgs) -> Expr {
+fn bin_op(f: impl Fn(f64, f64) -> f64, init: f64, args: Vec<Expr>) -> Expr {
     let mut acc = init;
 
     for el in args {
@@ -92,18 +92,6 @@ fn env() -> Env {
 
     let map = hashmap![
         key("+") => PrimOp(Box::new(|args| bin_op(|a, b| a + b, 0.0, args))),
-        key("-") => PrimOp(Box::new(|args| {
-        let init = args
-            .next()
-            .ok_or_else(|| eyre!("can't subtract from nothing"))?;
-
-        let init = match init {
-            Num(x) => x,
-            _ => bail!("operating on a non-number"),
-        };
-
-        bin_op(|a, b| a - b, init, args)
-    })),
         key("*") => PrimOp(Box::new(|args| bin_op(|a, b| a * b, 1.0, args))),
 
         key("e") => Num(std::f64::consts::E),
@@ -127,7 +115,7 @@ fn test_add() {
         vec![Num(1.0), Var(env.interner.get("e").unwrap()), Num(0.5)],
     );
 
-    matches!(eval(&mut env, expr).unwrap(), Num(val) if val == 1.0 + std::f64::consts::E + 0.5);
+    matches!(eval(&env, expr).unwrap(), Num(val) if val == 1.0 + std::f64::consts::E + 0.5);
 }
 
 fn main() {
