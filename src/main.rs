@@ -148,6 +148,8 @@ fn main() {
 
     let mut rl = Editor::<()>::new();
 
+    rl.load_history(&history_path).unwrap();
+
     let mut env = env();
 
     loop {
