@@ -146,7 +146,9 @@ fn main() {
 
     let mut rl = Editor::<()>::new();
 
-    rl.load_history(&history_path).unwrap();
+    if rl.load_history(&history_path).is_err() {
+        println!("No previous history found.");
+    }
 
     let mut env = env();
 
