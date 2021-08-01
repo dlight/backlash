@@ -88,16 +88,16 @@ fn env() -> Env {
     let mut key = |s: &'static str| rodeo.get_or_intern_static(s);
 
     let map = hashmap![
-        key("+") => PrimOp(Box::new(|args| bin_op(|a, b| a + b, 0.0, args))),
-        key("*") => PrimOp(Box::new(|args| bin_op(|a, b| a * b, 1.0, args))),
+        key("add") => PrimOp(Box::new(|args| bin_op(|a, b| a + b, 0.0, args))),
+        key("mul") => PrimOp(Box::new(|args| bin_op(|a, b| a * b, 1.0, args))),
 
         key("e") => Num(std::f64::consts::E),
         key("pi") => Num(std::f64::consts::PI),
     ];
 
     Env {
-        vars: map,
         interner: rodeo,
+        vars: map,
     }
 }
 
@@ -159,11 +159,29 @@ fn main() {
                 rl.add_history_entry(&line);
 
                 use combine::*;
-                let parsed = crate::parser::parse_expr().easy_parse(line.as_str());
+                let parsed = crate::parser::parse_expr().easy_parse(&*line);
 
                 match &parsed {
-                    Ok(s) => println!("Parsed: {:?}", &parsed),
-                    Err(e) => println!("Error: {}", e),
+                    Ok((s, _)) => {
+                        println!("Parsed: {:?}", s);
+
+                        let mut words = s.iter().map(|x| Expr::Var(env.interner.get_or_intern(x)));
+
+                        let f = words.next().unwrap();
+
+                        let rest: Vec<Expr> = words.collect();
+
+                        let expr = App(Box::new(f), rest);
+
+                        let result = eval(&env, expr);
+
+                        match result {
+                            Ok(Num(n)) => println!("Result: {}", n),
+                            Err(e) => println!("Evaluation error: {}", e),
+                            _ => println!("(can't print this yet)"),
+                        }
+                    }
+                    Err(e) => println!("Parser error: {}", e),
                 }
             }
             Err(Interrupted) => {

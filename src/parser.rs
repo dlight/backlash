@@ -6,6 +6,7 @@ use crate::Env;
 use crate::Expr;
 use crate::Symbol;
 
+use crate::Error;
 use color_eyre::Result;
 
 parser! {
