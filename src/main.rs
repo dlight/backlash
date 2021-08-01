@@ -15,12 +15,11 @@ use dyn_clone::DynClone;
 
 use lasso::{Rodeo, Spur};
 
-use pom::parser::*;
-use pom::Parser;
-
 use maplit::hashmap;
 
 use Expr::*;
+
+pub mod parser;
 
 type Error = Report;
 
@@ -28,15 +27,13 @@ type Symbol = Spur;
 
 type Map<T> = HashMap<Symbol, T>;
 
-type FnArgs = dyn Iterator<Item = Expr>;
-
 trait FnClone: DynClone + Fn(Vec<Expr>) -> Result<Expr> {}
 
 impl<T> FnClone for T where T: DynClone + Fn(Vec<Expr>) -> Result<Expr> {}
 
 dyn_clone::clone_trait_object!(FnClone);
 
-struct Env {
+pub struct Env {
     vars: Map<Expr>,
     interner: Rodeo,
 }
@@ -140,5 +137,46 @@ fn test_mul() {
 }
 
 fn main() {
-    println!("Hello, world!");
+    use rustyline::error::ReadlineError::*;
+    use rustyline::Editor;
+
+    let xdg_dirs = xdg::BaseDirectories::with_prefix("backlash").unwrap();
+
+    let history_path = xdg_dirs
+        .place_config_file("history")
+        .expect("cannot create configuration directory");
+
+    let mut rl = Editor::<()>::new();
+
+    let mut env = env();
+
+    loop {
+        let readline = rl.readline(">> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(&line);
+
+                use combine::*;
+                let parsed = crate::parser::parse_expr().easy_parse(line.as_str());
+
+                match &parsed {
+                    Ok(s) => println!("Parsed: {:?}", &parsed),
+                    Err(e) => println!("Error: {}", e),
+                }
+            }
+            Err(Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break;
+            }
+        }
+        rl.save_history(&history_path).unwrap();
+    }
 }

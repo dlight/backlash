@@ -12,5 +12,8 @@ color-eyre = "0.5"
 dyn-clone = "1.0"
 maplit = "1.0"
 
-pom = "3.2"
+rustyline = "8.2"
+xdg = "2.2"
+
+combine = "4.6"
 lasso = "0.5"
