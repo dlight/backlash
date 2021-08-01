@@ -1,6 +1,4 @@
-#![feature(impl_trait_in_bindings)]
 #![allow(unused)]
-#![allow(incomplete_features)]
 
 use std::collections::HashMap;
 
