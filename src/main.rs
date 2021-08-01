@@ -115,7 +115,28 @@ fn test_add() {
         vec![Num(1.0), Var(env.interner.get("e").unwrap()), Num(0.5)],
     );
 
-    matches!(eval(&env, expr).unwrap(), Num(val) if val == 1.0 + std::f64::consts::E + 0.5);
+    match eval(&env, expr).unwrap() {
+        Num(val) if val == 1.0 + std::f64::consts::E + 0.5 => (),
+        _ => unreachable!(),
+    };
+}
+
+#[test]
+#[should_panic]
+fn test_mul() {
+    let env = env();
+
+    let mul = env.vars[&env.interner.get("*").unwrap()].clone();
+
+    let expr = App(
+        Box::new(mul),
+        vec![Num(0.75), Var(env.interner.get("pi").unwrap()), Num(10.0)],
+    );
+
+    match eval(&env, expr).unwrap() {
+        Num(val) if val == 0.76 * std::f64::consts::PI * 10.0 => (),
+        _ => panic!("they should indeed be different, 0.75 != 0.76"),
+    };
 }
 
 fn main() {
